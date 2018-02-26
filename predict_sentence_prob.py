@@ -15,9 +15,9 @@ logging = tf.logging
 
 flags.DEFINE_string("model", "small", "A type of model. Possible options are: small, medium, large.")
 flags.DEFINE_string("data_path", './data/simple-examples/data', "data_path")
-flags.DEFINE_string("checkpoint_dir", "./corpus_logdir_larger_vocab", "checkpoint_dir")
+flags.DEFINE_string("checkpoint_dir", "../corpus_logdir_larger_vocab", "checkpoint_dir")
 flags.DEFINE_bool("use_fp16", False, "Train using 16-bit floats instead of 32bit floats")
-flags.DEFINE_string("train_dataset", "./corpus/train_corpus_wiki.data", "train data path")
+flags.DEFINE_string("train_dataset", "../corpus/train_corpus_wiki.data", "train data path")
 
 FLAGS = flags.FLAGS
 
@@ -273,7 +273,7 @@ def main(_):
 
         with open('res.data','w') as res_f:
             k = 0
-            for predict_data, num_step, unk_words , unk_words_percent in Reader._file_to_word_ids_predict("./corpus/predict_corpus_wiki_seg.data", word_to_id=word_to_id):
+            for predict_data, num_step, unk_words , unk_words_percent in Reader._file_to_word_ids_predict("../corpus/predict_corpus_wiki_seg.data", word_to_id=word_to_id):
                 eval_config.num_steps = num_step
                 start_time = time.time()
                 with tf.variable_scope("model", reuse=True, initializer=initializer):
