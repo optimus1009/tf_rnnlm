@@ -265,7 +265,6 @@ def main(_):
 
         print('testing')
         ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
-        print(ckpt)
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(session, ckpt.model_checkpoint_path)
         else:
