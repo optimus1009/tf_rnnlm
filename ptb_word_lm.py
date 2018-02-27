@@ -17,10 +17,10 @@ logging = tf.logging
 
 flags.DEFINE_string("model", "small", "A type of model. Possible options are: small, medium, large.")
 flags.DEFINE_string("data_path", './data/simple-examples/data', "data_path")
-flags.DEFINE_string("checkpoint_dir", "./corpus_logdir_larger_vocab", "checkpoint_dir")
+flags.DEFINE_string("checkpoint_dir", "./corpus_logdir_medium", "checkpoint_dir")
 flags.DEFINE_bool("use_fp16", False, "Train using 16-bit floats instead of 32bit floats")
 flags.DEFINE_bool("train", True, "should we train or test")
-flags.DEFINE_string("train_dataset", "./corpus/train_corpus_wiki.data", "train data path")
+flags.DEFINE_string("train_dataset", "../corpus/corpus_beibei_train.data", "train data path")
 
 FLAGS = flags.FLAGS
 
@@ -146,7 +146,7 @@ class SmallConfig(object):
     num_steps = 20
     hidden_size = 200
     max_epoch = 4
-    max_max_epoch = 10
+    max_max_epoch = 15
     keep_prob = 1.0
     lr_decay = 0.5
     batch_size = 20
@@ -159,14 +159,14 @@ class MediumConfig(object):
     learning_rate = 1.0
     max_grad_norm = 5
     num_layers = 2
-    num_steps = 35
+    num_steps = 30
     hidden_size = 650
     max_epoch = 6
-    max_max_epoch = 39
-    keep_prob = 0.5
+    max_max_epoch = 30
+    keep_prob = 1.0
     lr_decay = 0.8
-    batch_size = 200
-    vocab_size = 150000
+    batch_size = 50
+    vocab_size = 100000
 
 
 class LargeConfig(object):
@@ -201,7 +201,7 @@ class TestConfig(object):
     vocab_size = 100000
 
 
-def run_epoch(session, model, data, eval_op, verbose=True):
+def run_epoch(session, model, data, eval_op, epoch_num):
     """Runs the model on the given data."""
     epoch_size = ((len(data) // model.batch_size) - 1) // model.num_steps
     start_time = time.time()
@@ -226,7 +226,7 @@ def run_epoch(session, model, data, eval_op, verbose=True):
 
         #if verbose and step % (epoch_size // 10) == 10:
         if step % 10 == 0:
-            print("%.3f perplexity: %.3f speed: %.0f wps" % (step * 1.0 / epoch_size, np.exp(costs / iters), iters * model.batch_size / (time.time() - start_time)))
+            print("epoch: %d\t%.3f perplexity: %.3f speed: %.0f wps" % (epoch_num, step * 1.0 / epoch_size, np.exp(costs / iters), iters * model.batch_size / (time.time() - start_time)))
     print("costs is %d and iters is %d" % (costs,iters) )
     return np.exp(costs/iters)
 
@@ -257,15 +257,15 @@ def main(_):
     # train_data, valid_data, test_data, vocabulary, word_to_id = raw_data
     #Rani: added inverseDictionary
     word_to_id = Reader._build_vocab(FLAGS.train_dataset, cut_vocab_size=config.vocab_size)
-    train_data = Reader._file_to_word_ids('./corpus/train_corpus_wiki.data',word_to_id)
-    valid_data = Reader._file_to_word_ids('./corpus/valid_corpus_wiki.data',word_to_id)
-    test_data  = Reader._file_to_word_ids('./corpus/test_corpus_wiki.data', word_to_id)
+    train_data = Reader._file_to_word_ids('../corpus/corpus_beibei_train.data',word_to_id)
+    valid_data = Reader._file_to_word_ids('../corpus/corpus_beibei_valid.data',word_to_id)
+    test_data  = Reader._file_to_word_ids('../corpus/corpus_beibei_test.data', word_to_id)
     # inverseDictionary = dict(zip(word_to_id.values(), word_to_id.keys()))
 
 
-    # config_gpu = tf.ConfigProto()
-    # config_gpu.gpu_options.allocator_type = 'BFC' #动态分配显存
-    with tf.Graph().as_default(), tf.Session() as session:
+    #config_gpu = tf.ConfigProto()
+    #config_gpu.gpu_options.allocator_type = 'BFC' #动态分配显存
+    with tf.Graph().as_default(), tf.Session(config = tf.ConfigProto(log_device_placement=True)) as session:
         initializer = tf.random_uniform_initializer(-config.init_scale, config.init_scale)
         with tf.variable_scope("model", reuse=None, initializer=initializer):
             m = PTBModel(is_training=True, config=config)
@@ -282,12 +282,12 @@ def main(_):
                 lr_decay = config.lr_decay ** max(i - config.max_epoch, 0.0)
                 m.assign_lr(session, config.learning_rate * lr_decay)
 
-                print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
-                train_perplexity = run_epoch(session, m, train_data, m.train_op,verbose=True)
-                print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
+                print("Epoch: %f Learning rate: %.3f" % (i + 1, session.run(m.lr)))
+                train_perplexity = run_epoch(session, m, train_data, m.train_op,i + 1)
+                print("Epoch: %f Train Perplexity: %.3f" % (i + 1, train_perplexity))
 
-                valid_perplexity = run_epoch(session, mvalid, valid_data, tf.no_op())
-                print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
+                valid_perplexity = run_epoch(session, mvalid, valid_data, tf.no_op(), i + 1)
+                print("Epoch: %f Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
                 saver.save(session, FLAGS.checkpoint_dir + '/model.ckpt', global_step=i + 1)
         else:
             print('testing')
